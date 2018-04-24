@@ -3,6 +3,7 @@ package com.radium4ye.webflux;
 import org.junit.After;
 import org.junit.Test;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.UnicastProcessor;
 import reactor.core.scheduler.Schedulers;
@@ -62,26 +63,37 @@ public class MainOperateTest {
 
         // generate 生成，调用 next 即生成数据，complete 则是完成了整个流程
         // 一个循环中只允许调用 next 方式一次
-        Flux<Integer> flux1 = Flux.generate(() -> 0, (integer, sink) -> {
+        AtomicInteger atomicInteger = new AtomicInteger();
+        Flux<Integer> flux_generate1 = Flux.generate(sink -> {
+            if (atomicInteger.incrementAndGet() > 10) {
+                sink.complete();
+            }
+            sink.next(atomicInteger.get());
+        });
+
+
+        Flux<Integer> flux_generate2 = Flux.generate(() -> 0, (integer, sink) -> {
             if (++integer > 10) {
                 sink.complete();
             }
             sink.next(integer);
             return integer;
+        }, integer -> {
+            System.out.println("last integer value is " + integer);
         });
 
         //create 和 generate 恰恰相反 ，需要在一次将所有的数据生成完毕
-        Flux<Integer> flux2 = Flux.create(sink -> {
+        Flux<Integer> flux_create1 = Flux.create(sink -> {
             for (int i = 0; i < 10; i++) {
                 sink.next(i);
             }
             sink.complete();
-        });
+        }, FluxSink.OverflowStrategy.BUFFER);
 
         //interval 方法，是按照一定的时间进行数据产生
         Flux<Long> flux3 = Flux.interval(Duration.of(1, ChronoUnit.SECONDS));
 
-//       flux3.subscribe(System.out::println);
+//        flux_generate1.subscribe(System.out::println);
     }
 
     /**
@@ -310,7 +322,7 @@ public class MainOperateTest {
 
     /**
      * flux 发布订阅线程选择
-     *
+     * <p>
      * 输出结果 [elastic-2] [single-1] parallel-1
      */
     @Test
