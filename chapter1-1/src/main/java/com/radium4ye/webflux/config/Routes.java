@@ -23,8 +23,8 @@ public class Routes {
     @Bean
     public RouterFunction<?> routerFunction() {
         return nest(
-                path("/api/user"),
-                route(GET("/{id}"), helloHandler::hello)
+                path("/hello"),
+                route(GET(""), helloHandler::hello)
         );
     }
 }
