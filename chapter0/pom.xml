@@ -9,7 +9,7 @@
 	<packaging>jar</packaging>
 
 	<name>chapter0</name>
-	<description>Demo project for Spring Boot</description>
+	<description>WebFlux 基础 Project Reactor 3 常用操作整理</description>
 
 	<parent>
 		<groupId>org.springframework.boot</groupId>
