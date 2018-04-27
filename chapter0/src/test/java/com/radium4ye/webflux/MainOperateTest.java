@@ -7,10 +7,12 @@ import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.UnicastProcessor;
 import reactor.core.scheduler.Schedulers;
+import reactor.test.StepVerifier;
 
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
@@ -97,6 +99,35 @@ public class MainOperateTest {
     }
 
     /**
+     * 判断是否为字母并返回
+     *
+     * @param letterNumber 输入字符数字
+     * @return 输出字符
+     */
+    public String alphabet(int letterNumber) {
+        if (letterNumber < 1 || letterNumber > 26) {
+            return null;
+        }
+        int letterIndexAscii = 'A' + letterNumber - 1;
+        return "" + (char) letterIndexAscii;
+    }
+
+    /**
+     * handle 相关操作
+     */
+    @Test
+    public void flux_handle() {
+        StepVerifier.create(Flux.just(-1, 30, 13, 9, 20)
+                .handle((i, sink) -> {
+                    String letter = alphabet(i);
+                    if (letter != null)
+                        sink.next(letter);
+                }))
+                .expectNext("M", "I", "T")
+                .verifyComplete();
+    }
+
+    /**
      * buff 相关操作
      */
     @Test
@@ -106,28 +137,43 @@ public class MainOperateTest {
         Flux<Long> flux = Flux.interval(Duration.of(1, ChronoUnit.SECONDS));
 
         //buff：当缓存收到的数据满后，才会进行后续操作
-        flux.buffer(3);
+        StepVerifier.create(flux.buffer(3, 2).take(3))
+                .expectNext(Arrays.asList(0L, 1L, 2L))
+                .expectNext(Arrays.asList(2L, 3L, 4L))
+                .expectNext(Arrays.asList(4L, 5L, 6L))
+                .verifyComplete();
 
         //这个是增加超时时间的方法
         //即达到时间或者缓存收集满后，就会调用后续的方法
-        flux.bufferTimeout(3, Duration.of(1500, ChronoUnit.MILLIS));
+        StepVerifier.create(flux.bufferTimeout(3, Duration.of(1500, ChronoUnit.MILLIS)).take(1))
+                .expectNext(Arrays.asList(0L, 1L))
+                .verifyComplete();
 
         //bufferUntil 数据流一直在收集，当达到特定情况后（e.g. 收集到偶数），把数据一起给后续执行
-        Flux.range(1, 10).bufferUntil(i -> i % 2 == 0)
-                .subscribe(obj -> System.out.println("bufferUntil:" + obj));
+        StepVerifier.create(Flux.range(1, 10).bufferUntil(i -> i % 2 == 0))
+                .expectNext(Arrays.asList(1, 2))
+                .expectNext(Arrays.asList(3, 4))
+                .expectNext(Arrays.asList(5, 6))
+                .expectNext(Arrays.asList(7, 8))
+                .expectNext(Arrays.asList(9, 10))
+                .verifyComplete();
 
         //bufferWhile 数据流一直在过滤，数据出现了特定情况后（e.g. 收集到偶数），进行收集，并紧接着给后续执行
-        Flux.range(1, 10).bufferWhile(i -> i % 2 == 0)
-                .subscribe(obj -> System.out.println("bufferWhile:" + obj));
+        StepVerifier.create(Flux.range(1, 10).bufferWhile(i -> i % 2 == 0))
+                .expectNext(Collections.singletonList(2))
+                .expectNext(Collections.singletonList(4))
+                .expectNext(Collections.singletonList(6))
+                .expectNext(Collections.singletonList(8))
+                .expectNext(Collections.singletonList(10))
+                .verifyComplete();
 
         //window ：将数据按照窗口数进行切割成一个个数据流
         // 和 buff 方法比较类似，只是切割完后的结果，一个是数据流，一个数据组
         //windowWhile  windowUntil windowTimeout 和上面类似
         Flux.range(1, 10).window(3)
                 .subscribe(unicastProcessor -> {
-                    unicastProcessor.subscribe(obj -> System.out.println("level2-" + obj + "-" + Thread.currentThread().getName()));
-                    System.out.println("level1-" + Thread.currentThread().getName());
-                    System.out.println("----");
+                    unicastProcessor.subscribe(System.out::print);
+                    System.out.println("\n----");
                 });
 
     }
@@ -143,9 +189,11 @@ public class MainOperateTest {
                 .zipWith(Flux.just("c", "d"))
                 .subscribe(System.out::println);
 
-        Flux.just("a", "b")
-                .zipWith(Flux.just("c", "d"), (s1, s2) -> String.format("%s-%s", s1, s2))
-                .subscribe(System.out::println);
+        StepVerifier.create(Flux.just("a", "b")
+                .zipWith(Flux.just("c", "d"), (s1, s2) -> String.format("%s-%s", s1, s2)))
+                .expectNext("a-c")
+                .expectNext("b-d")
+                .verifyComplete();
     }
 
 
@@ -154,16 +202,28 @@ public class MainOperateTest {
         Flux<Integer> flux = Flux.range(1, 10);
 
         //获取数据中开头2个
-        flux.take(2).subscribe(System.out::println);
+        StepVerifier.create(flux.take(2))
+                .expectNext(1, 2)
+                .verifyComplete();
 
         //结尾2两个
-        flux.takeLast(2).subscribe(System.out::println);
+        StepVerifier.create(flux.takeLast(2))
+                .expectNext(9, 10)
+                .verifyComplete();
 
         //While 当条件满足时就继续
-        Flux.range(1, 1000).takeWhile(i -> i < 10).subscribe(System.out::println);
+        StepVerifier.create(
+                Flux.range(1, 1000)
+                        .takeWhile(i -> i < 10))
+                .expectNext(1, 2, 3, 4, 5, 6, 7, 8, 9)
+                .verifyComplete();
 
         //Util 当条件满足是，才将之前的数据交给后续进行处理
-        Flux.range(1, 1000).takeUntil(i -> i == 10).subscribe(System.out::println);
+        StepVerifier.create(
+                Flux.range(1, 1000).
+                        takeUntil(i -> i == 10))
+                .expectNext(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+                .verifyComplete();
 
     }
 
@@ -171,12 +231,18 @@ public class MainOperateTest {
     public void flux_merge() {
 
         //合并数据流
-//        Flux.merge(Flux.interval(Duration.of(1000, ChronoUnit.MILLIS)), Flux.interval(Duration.of(1000, ChronoUnit.MILLIS)))
-//                .subscribe(System.out::println);
+        StepVerifier.create(Flux.merge(
+                Flux.interval(Duration.of(1000, ChronoUnit.MILLIS)).take(5),
+                Flux.interval(Duration.of(1000, ChronoUnit.MILLIS)).take(5)))
+                .expectNext(0L, 0L, 1L, 1L, 2L, 2L, 3L, 3L, 4L, 4L)
+                .verifyComplete();
 
         //Sequential 则是将数据流按序进行输出，会先见第一个流中的数据输出，第二个数据流会先放入缓存，等待第一个流。
-        Flux.mergeSequential(Flux.interval(Duration.of(1000, ChronoUnit.MILLIS)).take(5), Flux.interval(Duration.of(1000, ChronoUnit.MILLIS)))
-                .subscribe(System.out::println);
+        StepVerifier.create(Flux.mergeSequential(
+                Flux.interval(Duration.of(1000, ChronoUnit.MILLIS)).take(5),
+                Flux.interval(Duration.of(1000, ChronoUnit.MILLIS)).take(5)))
+                .expectNext(0L, 1L, 2L, 3L, 4L, 0L, 1L, 2L, 3L, 4L)
+                .verifyComplete();
 
     }
 
@@ -342,7 +408,7 @@ public class MainOperateTest {
                 .forEach(System.out::println);
 
 
-        //并发消费，这里采用了parallel()，将任务分发到4个不同的线程进行处理
+        //并行消费，这里采用了parallel()，将任务分发到4个不同的线程进行处理
         //注意，如果之后没有调用 runOn() 方法，那么任务会在当前线程分轨处理。
         Flux.range(1, 10)
                 .parallel(4)
