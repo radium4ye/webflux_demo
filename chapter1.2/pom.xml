@@ -4,11 +4,11 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<groupId>com.radium4ye.webflux</groupId>
-	<artifactId>chapter1.2</artifactId>
+	<artifactId>chapter1-2</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<packaging>jar</packaging>
 
-	<name>chapter1.2</name>
+	<name>chapter1-2</name>
 	<description>整合 Undertow</description>
 
 	<parent>
