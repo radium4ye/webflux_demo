@@ -16,4 +16,9 @@ public class HelloController {
         return Mono.just("hello world.");
     }
 
+    @GetMapping("/hi")
+    Mono<String> hi(ServerHttpRequest request) {
+        return Mono.just("hi world.");
+    }
+
 }
