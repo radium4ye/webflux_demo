@@ -5,6 +5,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.reactive.function.server.RouterFunction;
+import org.springframework.web.reactive.function.server.ServerResponse;
+import reactor.core.publisher.Mono;
 
 import static org.springframework.web.reactive.function.server.RequestPredicates.GET;
 import static org.springframework.web.reactive.function.server.RequestPredicates.path;
@@ -24,7 +26,13 @@ public class Routes {
     public RouterFunction<?> routerFunction() {
         return nest(
                 path("/hello"),
-                route(GET(""), helloHandler::hello)
-        );
+                route(GET("").or(GET("/world")), helloHandler::hello)
+        )
+                .andRoute(GET("/hi"), helloHandler::hi)
+                .filter((request, next) -> {
+                    System.out.println("Before handler invocation: " + request.path());
+                    return next.handle(request);
+                })
+                ;
     }
 }

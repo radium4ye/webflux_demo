@@ -5,6 +5,8 @@ import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
 import reactor.core.publisher.Mono;
 
+import javax.validation.constraints.NotNull;
+
 /**
  * hello 处理器
  *
@@ -21,5 +23,9 @@ public class HelloHandler {
      */
     public Mono<ServerResponse> hello(ServerRequest request) {
         return ServerResponse.ok().body(Mono.just("hello world."), String.class);
+    }
+
+    public Mono<ServerResponse> hi(ServerRequest request) {
+        return ServerResponse.ok().body(Mono.just("hi world."), String.class);
     }
 }
